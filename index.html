@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diabrogue — 幸存者刷宝卡牌</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ════════════════════ LOBBY SCREEN ════════════════════ -->
+  <div id="screen-lobby" class="screen active">
+    <div class="lobby-header">
+      <h1 class="game-title">DIABROGUE</h1>
+      <p class="game-sub">幸存者 · 挂机 · 卡牌 · 刷宝</p>
+    </div>
+
+    <div class="lobby-body">
+      <!-- Left: Equipment -->
+      <div class="panel equip-panel">
+        <h3 class="panel-title">装备</h3>
+        <div class="equip-doll">
+          <div class="equip-row">
+            <div class="equip-empty"></div>
+            <div class="equip-slot" data-slot="head" title="头盔"><span class="slot-icon">⛑</span></div>
+            <div class="equip-empty"></div>
+          </div>
+          <div class="equip-row">
+            <div class="equip-slot" data-slot="amulet" title="项链"><span class="slot-icon">📿</span></div>
+            <div class="char-avatar">⚔</div>
+            <div class="equip-slot" data-slot="ring1" title="戒指1"><span class="slot-icon">💍</span></div>
+          </div>
+          <div class="equip-row">
+            <div class="equip-slot" data-slot="weapon" title="武器"><span class="slot-icon">🗡</span></div>
+            <div class="equip-slot" data-slot="chest" title="胸甲"><span class="slot-icon">🛡</span></div>
+            <div class="equip-slot" data-slot="offhand" title="副手"><span class="slot-icon">🪬</span></div>
+          </div>
+          <div class="equip-row">
+            <div class="equip-slot" data-slot="gloves" title="手套"><span class="slot-icon">🧤</span></div>
+            <div class="equip-slot" data-slot="belt" title="腰带"><span class="slot-icon">🔗</span></div>
+            <div class="equip-slot" data-slot="ring2" title="戒指2"><span class="slot-icon">💍</span></div>
+          </div>
+          <div class="equip-row">
+            <div class="equip-slot" data-slot="legs" title="腿甲"><span class="slot-icon">👖</span></div>
+            <div class="equip-empty"></div>
+            <div class="equip-slot" data-slot="boots" title="靴子"><span class="slot-icon">👢</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: Stats + Start -->
+      <div class="panel stats-panel">
+        <h3 class="panel-title">角色属性</h3>
+        <div class="stats-list" id="stats-list"></div>
+        <div class="btn-group">
+          <button id="btn-start" class="btn-primary">⚔ 开始挑战</button>
+          <button id="btn-reset" class="btn-danger">🗑 重置存档</button>
+        </div>
+        <div class="best-run" id="best-run"></div>
+      </div>
+
+      <!-- Right: Inventory -->
+      <div class="panel inv-panel">
+        <h3 class="panel-title">背包 <span id="inv-count" class="inv-count">0/20</span></h3>
+        <div class="inv-grid" id="inv-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ GAME SCREEN ════════════════════ -->
+  <div id="screen-game" class="screen">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div class="hud-left">
+        <div class="hud-bar-wrap">
+          <div class="hud-bar hp-bar">
+            <div class="hud-bar-fill" id="hp-fill"></div>
+          </div>
+          <span class="hud-bar-label" id="hp-text">❤ 100/100</span>
+        </div>
+        <div class="hud-bar-wrap">
+          <div class="hud-bar xp-bar">
+            <div class="hud-bar-fill" id="xp-fill"></div>
+          </div>
+          <span class="hud-bar-label" id="xp-text">Lv.1 · 0/50 XP</span>
+        </div>
+      </div>
+      <div class="hud-center">
+        <div id="hud-timer" class="hud-timer">00:00</div>
+        <div id="hud-wave" class="hud-wave">Wave 1</div>
+        <div id="hud-kills" class="hud-kills">☠ 0</div>
+      </div>
+      <div class="hud-right">
+        <div class="skill-bar" id="skill-bar"></div>
+      </div>
+    </div>
+
+    <!-- Card Selection Overlay -->
+    <div id="overlay-cards" class="overlay hidden">
+      <div class="overlay-box cards-box">
+        <div class="overlay-title">
+          <span class="lv-badge" id="card-lv-badge">Lv. 2</span>
+          <h2>选择技能</h2>
+        </div>
+        <div class="card-choices" id="card-choices"></div>
+        <p class="skip-hint">按 <kbd>Esc</kbd> 跳过（随机选一张）</p>
+      </div>
+    </div>
+
+    <!-- Game Over / Victory Overlay -->
+    <div id="overlay-end" class="overlay hidden">
+      <div class="overlay-box end-box">
+        <h2 id="end-title">游戏结束</h2>
+        <div class="end-stats" id="end-stats"></div>
+        <div class="end-loot" id="end-loot">
+          <h3>🎁 获得战利品</h3>
+          <div class="end-items" id="end-items"></div>
+        </div>
+        <button id="btn-back" class="btn-primary">🏠 返回大厅</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tooltip -->
+<div id="tooltip" class="tooltip hidden"></div>
+
+<script src="js/data.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
