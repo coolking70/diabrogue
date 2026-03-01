@@ -853,8 +853,8 @@ class Game {
   }
 
   resize() {
-    this.canvas.width  = this.canvas.offsetWidth  || window.innerWidth;
-    this.canvas.height = this.canvas.offsetHeight || window.innerHeight;
+    this.canvas.width  = window.innerWidth;
+    this.canvas.height = window.innerHeight;
     this.W = this.canvas.width;
     this.H = this.canvas.height;
     this.player.pos = new Vec2(this.W / 2, this.H / 2);

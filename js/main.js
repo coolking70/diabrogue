@@ -114,47 +114,46 @@ let activeGame = null;
 function startRun() {
   UI.showScreen('screen-game');
 
-  // Wait one frame so the browser completes layout before reading canvas dimensions
-  requestAnimationFrame(() => {
-    const canvas = document.getElementById('game-canvas');
-    canvas.width  = canvas.offsetWidth  || window.innerWidth;
-    canvas.height = canvas.offsetHeight || window.innerHeight;
+  const canvas = document.getElementById('game-canvas');
+  // Use viewport dimensions directly — canvas fills the full screen,
+  // and offsetWidth can return 0 on some browsers for position:absolute elements
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
 
-    const player = new Player(null, STATE.equipped);
+  const player = new Player(null, STATE.equipped);
 
-    activeGame = new Game(
-      canvas,
-      player,
-      // onLevelUp
-      (level) => {
-        UI.showCardSelect(player, level, (card) => {
-          applyCardPick(player, card);
-          if (activeGame) activeGame.paused = false;
-        });
-      },
-      // onDeath
-      (loot) => {
-        const stats = buildRunStats(activeGame, loot);
-        updateBestRun(activeGame, false);
-        UI.showEndScreen(false, stats, loot, (loot2) => {
-          addRunLoot(loot2);
-          endRun();
-        });
-      },
-      // onVictory
-      (loot) => {
-        const stats = buildRunStats(activeGame, loot);
-        updateBestRun(activeGame, true);
-        UI.showEndScreen(true, stats, loot, (loot2) => {
-          addRunLoot(loot2);
-          endRun();
-        });
-      },
-    );
+  activeGame = new Game(
+    canvas,
+    player,
+    // onLevelUp
+    (level) => {
+      UI.showCardSelect(player, level, (card) => {
+        applyCardPick(player, card);
+        if (activeGame) activeGame.paused = false;
+      });
+    },
+    // onDeath
+    (loot) => {
+      const stats = buildRunStats(activeGame, loot);
+      updateBestRun(activeGame, false);
+      UI.showEndScreen(false, stats, loot, (loot2) => {
+        addRunLoot(loot2);
+        endRun();
+      });
+    },
+    // onVictory
+    (loot) => {
+      const stats = buildRunStats(activeGame, loot);
+      updateBestRun(activeGame, true);
+      UI.showEndScreen(true, stats, loot, (loot2) => {
+        addRunLoot(loot2);
+        endRun();
+      });
+    },
+  );
 
-    activeGame.start();
-    startHudLoop();
-  });
+  activeGame.start();
+  startHudLoop();
 }
 
 function buildRunStats(game, loot) {
