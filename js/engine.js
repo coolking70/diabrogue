@@ -467,21 +467,27 @@ class Player {
     return { dmg, crit };
   }
 
-  update(dt, keys, enemies) {
+  update(dt, keys, enemies, joystick) {
     this.invincibleTimer = Math.max(0, this.invincibleTimer - dt);
     this.flashTimer      = Math.max(0, this.flashTimer - dt);
 
     // Movement
     const speed = this.effectiveSpeed;
     let dx = 0, dy = 0;
-    if (keys['w'] || keys['arrowup'])    dy -= 1;
-    if (keys['s'] || keys['arrowdown'])  dy += 1;
-    if (keys['a'] || keys['arrowleft'])  dx -= 1;
-    if (keys['d'] || keys['arrowright']) dx += 1;
+    if (joystick && joystick.active) {
+      dx = joystick.dx;
+      dy = joystick.dy;
+    } else {
+      if (keys['w'] || keys['arrowup'])    dy -= 1;
+      if (keys['s'] || keys['arrowdown'])  dy += 1;
+      if (keys['a'] || keys['arrowleft'])  dx -= 1;
+      if (keys['d'] || keys['arrowright']) dx += 1;
+    }
     if (dx !== 0 || dy !== 0) {
-      const d = new Vec2(dx, dy).norm();
+      const raw = new Vec2(dx, dy);
+      const d   = (joystick && joystick.active) ? raw : raw.norm();
       this.pos.addMut(d.scale(speed * dt));
-      this.facing = d;
+      this.facing = raw.norm();
     }
 
     // HP regen
@@ -832,12 +838,23 @@ class Game {
     this._boundResize = () => this.resize();
     window.addEventListener('resize', this._boundResize);
 
+    // Touch joystick
+    this.joystick = { active: false, origin: null, dx: 0, dy: 0, baseRadius: 60 };
+    this._joystickTouchId = null;
+    this._boundTouchStart  = e => this._onTouchStart(e);
+    this._boundTouchMove   = e => this._onTouchMove(e);
+    this._boundTouchEnd    = e => this._onTouchEnd(e);
+    this.canvas.addEventListener('touchstart',  this._boundTouchStart,  { passive: false });
+    this.canvas.addEventListener('touchmove',   this._boundTouchMove,   { passive: false });
+    this.canvas.addEventListener('touchend',    this._boundTouchEnd,    { passive: false });
+    this.canvas.addEventListener('touchcancel', this._boundTouchEnd,    { passive: false });
+
     this.startWave(1);
   }
 
   resize() {
-    this.canvas.width  = this.canvas.offsetWidth;
-    this.canvas.height = this.canvas.offsetHeight;
+    this.canvas.width  = this.canvas.offsetWidth  || window.innerWidth;
+    this.canvas.height = this.canvas.offsetHeight || window.innerHeight;
     this.W = this.canvas.width;
     this.H = this.canvas.height;
     this.player.pos = new Vec2(this.W / 2, this.H / 2);
@@ -885,6 +902,10 @@ class Game {
     window.removeEventListener('keydown', this._boundKeyDown);
     window.removeEventListener('keyup',   this._boundKeyUp);
     window.removeEventListener('resize',  this._boundResize);
+    this.canvas.removeEventListener('touchstart',  this._boundTouchStart);
+    this.canvas.removeEventListener('touchmove',   this._boundTouchMove);
+    this.canvas.removeEventListener('touchend',    this._boundTouchEnd);
+    this.canvas.removeEventListener('touchcancel', this._boundTouchEnd);
   }
 
   loop(ts) {
@@ -908,7 +929,7 @@ class Game {
       return;
     }
 
-    this.player.update(dt, this.keys, this.enemies);
+    this.player.update(dt, this.keys, this.enemies, this.joystick);
 
     if (this.player.dead) {
       this.onDeath(this.loot);
@@ -1188,6 +1209,91 @@ class Game {
       ctx.shadowColor = '#e8b84b';
       ctx.fillText(`Wave ${this.wave} 完成! ►  Wave ${this.wave + 1}`, W / 2, H / 2 - 40);
       ctx.restore();
+    }
+
+    // Touch joystick overlay
+    if (this.joystick.active && this.joystick.origin) {
+      const ox = this.joystick.origin.x;
+      const oy = this.joystick.origin.y;
+      const r  = this.joystick.baseRadius;
+      ctx.save();
+      // Base ring
+      ctx.beginPath();
+      ctx.arc(ox, oy, r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Handle
+      const hx = ox + this.joystick.dx * r;
+      const hy = oy + this.joystick.dy * r;
+      ctx.beginPath();
+      ctx.arc(hx, hy, r * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  /* ──── Touch handlers ──── */
+  _getTouchPos(touch) {
+    const rect = this.canvas.getBoundingClientRect();
+    return new Vec2(
+      (touch.clientX - rect.left) * (this.W / (rect.width  || 1)),
+      (touch.clientY - rect.top)  * (this.H / (rect.height || 1))
+    );
+  }
+
+  _onTouchStart(e) {
+    e.preventDefault();
+    for (const touch of e.changedTouches) {
+      if (this._joystickTouchId === null) {
+        this._joystickTouchId = touch.identifier;
+        const pos = this._getTouchPos(touch);
+        this.joystick.origin = pos;
+        this.joystick.active = true;
+        this.joystick.dx = 0;
+        this.joystick.dy = 0;
+        break;
+      }
+    }
+  }
+
+  _onTouchMove(e) {
+    e.preventDefault();
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === this._joystickTouchId) {
+        const pos = this._getTouchPos(touch);
+        const dx  = pos.x - this.joystick.origin.x;
+        const dy  = pos.y - this.joystick.origin.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len > 4) {
+          const clamped = Math.min(len, this.joystick.baseRadius);
+          this.joystick.dx = (dx / len) * (clamped / this.joystick.baseRadius);
+          this.joystick.dy = (dy / len) * (clamped / this.joystick.baseRadius);
+        } else {
+          this.joystick.dx = 0;
+          this.joystick.dy = 0;
+        }
+        break;
+      }
+    }
+  }
+
+  _onTouchEnd(e) {
+    for (const touch of e.changedTouches) {
+      if (touch.identifier === this._joystickTouchId) {
+        this._joystickTouchId = null;
+        this.joystick.active  = false;
+        this.joystick.origin  = null;
+        this.joystick.dx = 0;
+        this.joystick.dy = 0;
+        break;
+      }
     }
   }
 }

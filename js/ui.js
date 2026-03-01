@@ -98,10 +98,15 @@ const UI = (() => {
         label.className = 'item-label';
         label.textContent = item.name.slice(0, 4);
         el.appendChild(label);
-        el.onmouseenter = () => showTooltip(el, itemTooltipHtml(item) + `<div class="tt-hint">右键移除</div>`);
+        el.onmouseenter = () => showTooltip(el, itemTooltipHtml(item) + `<div class="tt-hint">右键/长按移除</div>`);
         el.onmouseleave = hideTooltip;
         el.oncontextmenu = e => { e.preventDefault(); onSlotClick(slot, 'unequip'); };
-        el.onclick = null;
+        // Touch: tap to unequip
+        if (navigator.maxTouchPoints > 0) {
+          el.onclick = () => { hideTooltip(); onSlotClick(slot, 'unequip'); };
+        } else {
+          el.onclick = null;
+        }
       } else {
         el.onmouseenter = null;
         el.onmouseleave = null;
@@ -232,15 +237,16 @@ const UI = (() => {
       choices.appendChild(el);
     });
 
-    // Esc = random pick
-    const escHandler = e => {
-      if (e.key === 'Escape') {
-        window.removeEventListener('keydown', escHandler);
-        overlay.classList.add('hidden');
-        onPick(cards[Math.floor(Math.random() * cards.length)]);
-      }
+    // Esc / skip button = random pick
+    const randomPick = () => {
+      window.removeEventListener('keydown', escHandler);
+      overlay.classList.add('hidden');
+      onPick(cards[Math.floor(Math.random() * cards.length)]);
     };
+    const escHandler = e => { if (e.key === 'Escape') randomPick(); };
     window.addEventListener('keydown', escHandler);
+    const skipBtn = document.getElementById('btn-skip-card');
+    if (skipBtn) skipBtn.onclick = randomPick;
   }
 
   function generateCardChoices(player) {
